@@ -1,6 +1,8 @@
 // ℹ️ Loads environment variables from a .env file into process.env
+const path = require("node:path");
+
 try {
-  process.loadEnvFile()
+  process.loadEnvFile(path.join(__dirname, ".env"));
 } catch(error) {
   console.warn(".env file not found, using default environment values")
 }
@@ -13,12 +15,9 @@ const app = express();
 const config = require("./config")
 config(app);
 
-// ℹ️ Middleware that establishes a database connection. Ensures the connection is created on every request. Required for serverless deployments.
 const connectDB = require("./db");
-app.use(async (req, res, next) => {
-  await connectDB()
-  next()
-})
+const mongoose = require("mongoose");
+const GameList = require("./models/GamesList.model");
 
 // ℹ️ Test Route. Can be left and used for waking up the server if idle
 app.get("/", (req, res, next) => {
@@ -33,10 +32,26 @@ app.use("/api", indexRouter);
 const handleErrors = require("./errors")
 handleErrors(app);
 
-// ℹ️ Defines the server port (default: 5005)
-const PORT = process.env.PORT || 5005;
+async function startServer() {
+  await connectDB();
 
-// ℹ️ Optional for serverless deployments like Vercel.
-app.listen(PORT, () => {
-  console.log(`Server listening. Local access on http://localhost:${PORT}`);
+  const collectionExists = await mongoose.connection.db
+    .listCollections({ name: GameList.collection.name }, { nameOnly: true })
+    .hasNext();
+
+  if (!collectionExists) {
+    await GameList.createCollection();
+    console.log(`Created MongoDB collection: "${GameList.collection.name}"`);
+  }
+
+  const PORT = process.env.PORT || 5005;
+  app.listen(PORT, () => {
+    console.log(`Server listening. Local access on http://localhost:${PORT}`);
+  });
+}
+
+startServer().catch(async (err) => {
+  console.error("Error starting server:", err);
+  await mongoose.disconnect();
+  process.exitCode = 1;
 });

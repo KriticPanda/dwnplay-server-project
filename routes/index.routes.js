@@ -1,5 +1,5 @@
 const router = require("express").Router();
 
-// ℹ️ Organize and connect all your route files here.
+router.use("/users", require("./user.routes"));
 
 module.exports = router;
