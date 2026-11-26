@@ -1,6 +1,10 @@
 const jwt = require("jsonwebtoken");
 
 function verifyToken(req, res, next) {
+  if (!process.env.TOKEN_SECRET) {
+    return res.status(500).json({ message: "TOKEN_SECRET is not configured" });
+  }
+
   const authorization = req.headers.authorization;
 
   if (!authorization || !authorization.startsWith("Bearer ")) {
